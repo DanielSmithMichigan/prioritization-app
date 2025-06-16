@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ELO rating update Lambda for work prioritization app
+
+Globals:
+  Function:
+    Timeout: 5
+    Runtime: nodejs20.x
+    MemorySize: 128
+    Architectures: [x86_64]
+
+Resources:
+  UpdateEloFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: main.handler
+      CodeUri: dist
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:Scan
+                - dynamodb:Query
+                - dynamodb:BatchGetItem
+                - dynamodb:BatchWriteItem
+              Resource: !GetAtt StoriesTable.Arn
+      Environment:
+        Variables:
+          STORIES_TABLE: !Ref StoriesTable
+      Events:
+        CreateStoryAPI:
+          Type: Api
+          Properties:
+            Path: /story/create
+            Method: post
+            RestApiId: !Ref EloApi
+        ELOUpdateAPI:
+          Type: Api
+          Properties:
+            Path: /elo/update
+            Method: post
+            RestApiId: !Ref EloApi
+        GetStoryAPI:
+          Type: Api
+          Properties:
+            Path: /story
+            Method: post
+            RestApiId: !Ref EloApi
+        GetAllStoriesAPI:
+          Type: Api
+          Properties:
+            Path: /stories/getAll
+            Method: post
+            RestApiId: !Ref EloApi
+
+  StoriesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: tenantId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: tenantId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+  EloApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: EloApi
+      StageName: Prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"  # Or use your frontend's exact origin for production
+

@@ -1,0 +1,19 @@
+{
+  "name": "elo-lambda",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "sam build; sam deploy"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.828.0",
+    "@aws-sdk/lib-dynamodb": "^3.828.0",
+    "@aws-sdk/util-dynamodb": "^3.828.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.17",
+    "@types/node": "^24.0.3",
+    "typescript": "^5.8.3"
+  }
+}
