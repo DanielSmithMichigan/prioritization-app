@@ -94,7 +94,7 @@ const GraphPage: React.FC = () => {
                 setSize({ w: clientWidth, h: clientHeight });
             }
         };
-        onResize();
+        setTimeout(() => onResize(), 10);
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
     }, []);
