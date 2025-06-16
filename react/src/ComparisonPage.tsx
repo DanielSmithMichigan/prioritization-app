@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { type RootState } from './store';
 import {
@@ -6,8 +6,8 @@ import {
   updateStories,
   removeStories,
 } from './store/comparisonSlice';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { type Story, type metricKeys } from './types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { type Story } from './types';
 
 const VITE_ELO_API_BASE = import.meta.env.VITE_ELO_API_BASE!;
 const tenantId = 'tenant-abc';
@@ -162,7 +162,7 @@ const ComparisonPage: React.FC = () => {
             </div>
 
             <div className="row g-4">
-              {[leftStory, rightStory].map((story, index) => (
+              {[leftStory, rightStory].map((story) => (
                 <div key={story.id} className="col-lg-6">
                   <div
                     className={`card h-100 shadow-sm border-0`}
