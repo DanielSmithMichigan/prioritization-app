@@ -4,6 +4,8 @@ import ComparisonPage from './ComparisonPage';
 import CreateStoriesPage from './CreateStoriesPage';
 import ViewStoriesPage from './ViewStoriesPage';
 import GraphPage from './GraphPage';
+import RankOrderingPage from './RankOrderingPage';
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const App: React.FC = () => {
@@ -36,6 +38,7 @@ const App: React.FC = () => {
             <Route path="/prioritization-app/" element={<ViewStoriesPage />} />
             <Route path="/prioritization-app/create" element={<CreateStoriesPage />} />
             <Route path="/prioritization-app/compare" element={<ComparisonPage />} />
+            <Route path="/prioritization-app/rank" element={<RankOrderingPage />} />
             <Route path="/prioritization-app/stories" element={<ViewStoriesPage />} />
             <Route path="/prioritization-app/graph" element={<GraphPage />} />
             <Route path="*" element={<Navigate to="/prioritization-app/" replace />} />

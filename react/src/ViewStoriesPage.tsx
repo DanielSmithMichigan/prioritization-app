@@ -85,7 +85,7 @@ const PaginatedStoryListPage: React.FC = () => {
     dispatch(clearSession());
     dispatch(setStories(selectedStories));
     dispatch(setComparisons(selectedComparisons));
-    navigate('/compare');
+    navigate('/prioritization-app/rank');
   };
 
   if (isLoading) {
@@ -260,7 +260,7 @@ const PaginatedStoryListPage: React.FC = () => {
                           </td>
                           <td>{story.category}</td>
                           {metrics.map(m => (
-                            <td key={m} className="text-center">{story.elo[m].rating}</td>
+                            <td key={m} className="text-center">{Math.round(story.elo[m].rating)}</td>
                           ))}
                         </tr>
                       ))}

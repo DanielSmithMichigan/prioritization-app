@@ -2,6 +2,7 @@ import { updateEloRating } from "./updateElo.js";
 import { fetchStory } from "./fetchStory.js";
 import { createStories } from "./createStories.js";
 import { getAllStories } from './getAllStories.js';
+import { rankStories } from './rankStories.js';
 
 import * as _ from 'lodash';
 
@@ -21,10 +22,8 @@ export const handler = async (event: any) => {
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
 
-    if (event.path === "/stories/getAll" && event.httpMethod === "POST") {
-      const { tenantId, limit, nextToken } = JSON.parse(event.body ?? '{}');
-      console.log(event.body);
-      console.log({ tenantId, limit, nextToken })
+    if (route === "/stories/getAll" && method === "POST") {
+      const { tenantId, limit, nextToken } = body;
 
       if (!tenantId) {
         return {
@@ -43,8 +42,8 @@ export const handler = async (event: any) => {
       };
     }
 
-    if (event.path === "/story/create" && event.httpMethod === "POST") {
-      const { tenantId, userId, titles } = JSON.parse(event.body ?? '{}');
+    if (route === "/story/create" && method === "POST") {
+      const { tenantId, userId, titles } = body;
 
       if (!tenantId || !userId || !Array.isArray(titles)) {
         return {
@@ -62,9 +61,30 @@ export const handler = async (event: any) => {
         body: JSON.stringify(result)
       };
     }
+
     if (route === "/elo/update" && method === "POST") {
       const result = await updateEloRating(body);
       return { statusCode: 200, headers, body: JSON.stringify(result) };
+    }
+
+    if (route === "/elo/rankBatch" && method === "POST") {
+      const { tenantId, metric, orderedStoryIds } = body;
+
+      if (!tenantId || !metric || !Array.isArray(orderedStoryIds) || orderedStoryIds.length < 2) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: "Missing or invalid tenantId, metric, or story list" })
+        };
+      }
+
+      const result = await rankStories({ tenantId, metric, orderedStoryIds });
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(result)
+      };
     }
 
     if (route === "/story" && method === "POST") {

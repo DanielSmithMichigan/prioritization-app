@@ -55,6 +55,12 @@ Resources:
             Path: /stories/getAll
             Method: post
             RestApiId: !Ref EloApi
+        BatchRank:
+          Type: Api
+          Properties:
+            Path: /elo/rankBatch
+            Method: post
+            RestApiId: !Ref EloApi
 
   StoriesTable:
     Type: AWS::DynamoDB::Table
