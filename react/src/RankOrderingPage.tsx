@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { type RootState } from './store';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -67,7 +67,6 @@ const SortableItem: React.FC<{ id: string; index: number; title: string; categor
 };
 
 const RankOrderingPage: React.FC = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const storiesMap = useSelector((state: RootState) => state.comparison.stories);
