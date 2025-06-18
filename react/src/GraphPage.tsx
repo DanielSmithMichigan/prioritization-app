@@ -65,14 +65,14 @@ const GraphPage: React.FC = () => {
             const nRisk = clampNorm(s.elo.risk.rating, min.risk, maxv.risk);
             const nVis = clampNorm(s.elo.visibility.rating, min.visibility, maxv.visibility);
 
-            const xAvg = (nTime + nRisk) / 2;
+            const xFormula = (nTime + (nRisk / 2)) / 1.5;
             return {
                 ...s,
                 nImpact,
                 nTime,
                 nRisk,
                 nVis,
-                x: xAvg,
+                x: xFormula,
                 y: nImpact,
             };
         });
@@ -114,7 +114,7 @@ const GraphPage: React.FC = () => {
             .attr('x', size.w - M.right).attr('y', 35)
             .attr('fill', '#000').attr('text-anchor', 'end')
             .attr('font-size', '40px')
-            .text('Effort + Risk');
+            .text('Effort + (½ x Risk)');
 
         svg.append('g')
             .attr('transform', `translate(${M.left},0)`)
@@ -205,7 +205,7 @@ Visibility: ${story.nVis.toFixed(1)}`}
             </div>
 
             <div className="container my-5">
-                <h4 className="mb-3">📊 Story Rankings (Impact - (Effort + Risk))</h4>
+                <h4 className="mb-3">📊 Story Rankings (Impact - (Effort + ½xRisk))</h4>
                 <table className="table table-sm table-striped table-hover">
                     <thead className="table-dark">
                         <tr>
