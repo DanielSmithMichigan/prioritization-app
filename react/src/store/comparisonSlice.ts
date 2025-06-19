@@ -1,19 +1,23 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { type Story } from '../types';
+import { type Story, type metricKeys } from '../types';
 
 export interface Comparison {
   leftId: string;
   rightId: string;
-  metric: keyof Story['elo'];
+  metric: metricKeys;
 }
 
 interface ComparisonState {
   stories: Record<string, Story>;
+  sliderStories: Story[];
   comparisons: Comparison[];
+  selectedMetric: metricKeys;
 }
 
 const initialState: ComparisonState = {
+  selectedMetric: 'impact',
   stories: {},
+  sliderStories: [],
   comparisons: [],
 };
 
@@ -44,7 +48,14 @@ export const comparisonSlice = createSlice({
     },
     clearSession(state) {
       state.stories = {};
+      state.sliderStories = [];
       state.comparisons = [];
+    },
+    setSliderStories(state, action: PayloadAction<Story[]>) {
+      state.sliderStories = action.payload;
+    },
+    setSelectedMetric(state, action: PayloadAction<metricKeys>) {
+      state.selectedMetric = action.payload;
     },
   },
 });
@@ -56,6 +67,8 @@ export const {
   setComparisons,
   shiftComparison,
   clearSession,
+  setSliderStories,
+  setSelectedMetric,
 } = comparisonSlice.actions;
 
 export default comparisonSlice.reducer;

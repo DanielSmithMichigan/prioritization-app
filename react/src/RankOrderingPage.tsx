@@ -75,8 +75,12 @@ const RankOrderingPage: React.FC = () => {
   const metric = comparison.metric;
 
   const uniqueIds = Object.keys(storiesMap);
+  
+  const initialItems = uniqueIds
+    .map(id => storiesMap[id])
+    .filter(Boolean)
+    .sort((a, b) => b.elo[metric].rating - a.elo[metric].rating); // sort descending
 
-  const initialItems = uniqueIds.map(id => storiesMap[id]).filter(Boolean);
   const [orderedIds, setOrderedIds] = useState(initialItems.map(s => s.id));
 
   const sensors = useSensors(

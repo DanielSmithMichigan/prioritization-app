@@ -13,12 +13,7 @@ export interface Story {
   title: string;
   description?: string;
   category: string;
-  elo: {
-    impact: EloRating;
-    estimatedTime: EloRating;
-    risk: EloRating;
-    visibility: EloRating;
-  };
+  elo: Record<metricKeys, EloRating>
 }
 
 export interface Comparison {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
-import { setStories, setComparisons, clearSession } from './store/comparisonSlice';
+import { setStories, setSliderStories, setSelectedMetric, clearSession, setComparisons } from './store/comparisonSlice';
 import type { Story } from './types';
 
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
@@ -23,10 +23,11 @@ const PaginatedStoryListPage: React.FC = () => {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [metric, setMetric] = useState<keyof Story['elo']>('impact');
-  const [comparisonCount, setComparisonCount] = useState(10);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [sortKey, setSortKey] = useState<keyof Story['elo'] | ''>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [comparisonCount, _setComparisonCount] = useState(10);
+  const [useSliderMode, setUseSliderMode] = useState(false);
 
   const {
     data: fetchedStories = [],
@@ -67,7 +68,7 @@ const PaginatedStoryListPage: React.FC = () => {
   const selectAll = () => setSelectedIds(new Set(visibleStories.map(s => s.id)));
   const clearAll = () => setSelectedIds(new Set());
 
-  const beginSession = () => {
+  const beginSliderSession = () => {
     const selectedStories = fetchedStories.filter(s => selectedIds.has(s.id));
     const pairs: { leftId: string; rightId: string }[] = [];
 
@@ -81,11 +82,12 @@ const PaginatedStoryListPage: React.FC = () => {
       const pair = pairs[Math.floor(Math.random() * pairs.length)];
       return { ...pair, metric };
     });
-
     dispatch(clearSession());
     dispatch(setStories(selectedStories));
+    dispatch(setSliderStories(selectedStories));
+    dispatch(setSelectedMetric(metric));
     dispatch(setComparisons(selectedComparisons));
-    navigate('/prioritization-app/rank');
+    navigate(useSliderMode ? '/prioritization-app/slider' : '/prioritization-app/rank');
   };
 
   if (isLoading) {
@@ -138,9 +140,9 @@ const PaginatedStoryListPage: React.FC = () => {
                 <div className="row g-3 mb-4">
                   <div className="col-md-4">
                     <label className="form-label fw-bold">Comparison Metric</label>
-                    <select 
+                    <select
                       className="form-select form-select-lg"
-                      value={metric} 
+                      value={metric}
                       onChange={e => setMetric(e.target.value as keyof Story['elo'])}
                     >
                       {metrics.map(m => (
@@ -151,27 +153,27 @@ const PaginatedStoryListPage: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="col-md-3">
-                    <label className="form-label fw-bold">Comparisons</label>
-                    <input
-                      type="number"
-                      className="form-control form-control-lg"
-                      value={comparisonCount}
-                      onChange={e => setComparisonCount(parseInt(e.target.value) || 1)}
-                      min={1}
-                      max={100}
-                    />
-                  </div>
-
-                  <div className="col-md-5 d-flex align-items-end gap-2">
+                  <div className="col-md-8 d-flex align-items-end gap-2">
+                    <div className="form-check me-3">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="sliderModeCheckbox"
+                        checked={useSliderMode}
+                        onChange={(e) => setUseSliderMode(e.target.checked)}
+                      />
+                      <label className="form-check-label" htmlFor="sliderModeCheckbox">
+                        Use slider mode
+                      </label>
+                    </div>
                     <button className="btn btn-outline-secondary" onClick={selectAll} disabled={selectedIds.size === visibleStories.length}>
                       <i className="bi bi-check-all me-1"></i> Select All
                     </button>
                     <button className="btn btn-outline-secondary" onClick={clearAll} disabled={selectedIds.size === 0}>
                       <i className="bi bi-x-square me-1"></i> Clear All
                     </button>
-                    <button className="btn btn-success btn-lg flex-grow-1" disabled={selectedIds.size < 2} onClick={beginSession} style={{ fontWeight: '600' }}>
-                      <i className="bi bi-play-circle-fill me-2"></i> Begin Session ({selectedIds.size} selected)
+                    <button className="btn btn-success flex-grow-1" disabled={selectedIds.size < 2} onClick={beginSliderSession} style={{ fontWeight: '600' }}>
+                      <i className="bi bi-sliders me-2"></i> Begin Comparison ({selectedIds.size} selected)
                     </button>
                   </div>
                 </div>
@@ -202,14 +204,6 @@ const PaginatedStoryListPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-
-                {selectedIds.size > 0 && (
-                  <div className="alert alert-info border-0 mb-4" role="alert">
-                    <i className="bi bi-info-circle-fill me-2"></i>
-                    <strong>{selectedIds.size}</strong> stories selected. 
-                    This will generate up to <strong>{Math.min(comparisonCount, (selectedIds.size * (selectedIds.size - 1)) / 2)}</strong> comparisons.
-                  </div>
-                )}
 
                 <div className="table-responsive">
                   <table className="table table-hover align-middle">
