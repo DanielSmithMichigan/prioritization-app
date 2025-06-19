@@ -4,6 +4,8 @@ import type { RootState } from './store';
 import type { Story, metricKeys } from './types';
 import type { CSSProperties } from 'react';
 
+const colorPalette = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#38bdf8', '#facc15', '#4ade80', '#fb7185'];
+
 const StoryDragArea = () => {
   const sliderStories: Story[] = useSelector((s: RootState) => s.comparison.sliderStories);
   const selectedMetric: metricKeys = useSelector((s: RootState) => s.comparison.selectedMetric);
@@ -70,6 +72,18 @@ const StoryDragArea = () => {
       };
     }
   }, [draggedStory, handleMouseMove, handleMouseUp]);
+
+  const getHorizontalRanking = () => {
+    return sliderStories
+      .map((story, index) => ({
+        ...story,
+        position: storyPositions[story.id].x,
+        origIndex: index
+      }))
+      .sort((a, b) => a.position - b.position);
+  };
+
+  const ranking = getHorizontalRanking();
 
   const styles = {
     dragArea: {
@@ -144,15 +158,12 @@ const StoryDragArea = () => {
       justifyContent: 'center',
       color: 'white',
       fontSize: '0.75rem',
-      fontWeight: 'bold',
-      backgroundColor: '#60a5fa'
+      fontWeight: 'bold'
     } as CSSProperties,
     dotHovered: {
-      backgroundColor: '#3b82f6',
       transform: 'scale(1.1)'
     } as CSSProperties,
     dotDragged: {
-      backgroundColor: '#2563eb',
       transform: 'scale(1.25)',
       cursor: 'grabbing',
       boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)'
@@ -161,6 +172,24 @@ const StoryDragArea = () => {
       display: 'flex',
       flexDirection: 'column' as const,
       gap: '0.75rem'
+    } as CSSProperties,
+    rankingItem: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#f3f4f6',
+      padding: '0.5rem 1rem',
+      borderRadius: '6px'
+    } as CSSProperties,
+    rankingDot: {
+      width: '24px',
+      height: '24px',
+      borderRadius: '50%',
+      marginRight: '0.75rem'
+    } as CSSProperties,
+    rankingLeft: {
+      display: 'flex',
+      alignItems: 'center'
     } as CSSProperties
   };
 
@@ -187,6 +216,7 @@ const StoryDragArea = () => {
           const position = storyPositions[story.id];
           const isDragged = draggedStory?.id === story.id;
           const isHovered = hoveredStory?.id === story.id;
+          const color = colorPalette[index % colorPalette.length];
 
           return (
             <div
@@ -208,6 +238,7 @@ const StoryDragArea = () => {
               <div
                 style={{
                   ...styles.dot,
+                  backgroundColor: color,
                   ...(isDragged ? styles.dotDragged : isHovered ? styles.dotHovered : {})
                 } as CSSProperties}
                 onMouseDown={(e) => handleMouseDown(e, story)}
@@ -219,6 +250,21 @@ const StoryDragArea = () => {
             </div>
           );
         })}
+      </div>
+
+      <div style={{ marginTop: '2rem' }}>
+        <h3>Current Ranking (Left to Right)</h3>
+        <div style={styles.rankingList}>
+          {ranking.map((story, index) => (
+            <div key={story.id} style={styles.rankingItem}>
+              <div style={styles.rankingLeft}>
+                <div style={{ ...styles.rankingDot, backgroundColor: colorPalette[story.origIndex % colorPalette.length], 'textAlign': 'center', 'color': 'white', 'fontWeight': 'bold' }}>{story.origIndex}</div>
+                <div>{story.title}</div>
+              </div>
+              <div>#{index + 1}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
