@@ -61,6 +61,12 @@ Resources:
             Path: /elo/rankBatch
             Method: post
             RestApiId: !Ref EloApi
+        BatchSliderUpdate:
+          Type: Api
+          Properties:
+            Path: /elo/batchSliderUpdate
+            Method: post
+            RestApiId: !Ref EloApi
 
   StoriesTable:
     Type: AWS::DynamoDB::Table

@@ -3,26 +3,40 @@ import { useSelector } from 'react-redux';
 import type { RootState } from './store';
 import type { Story, metricKeys } from './types';
 import type { CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const colorPalette = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#38bdf8', '#facc15', '#4ade80', '#fb7185'];
+const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
+const tenantId = 'tenant-abc';
 
 const StoryDragArea = () => {
   const sliderStories: Story[] = useSelector((s: RootState) => s.comparison.sliderStories);
   const selectedMetric: metricKeys = useSelector((s: RootState) => s.comparison.selectedMetric);
+  const navigate = useNavigate();
+  const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [storyPositions, setStoryPositions] = useState(() => {
     const positions: Record<string, { x: number, y: number }> = {};
-    const containerWidth = 1000;
-    const spacing = containerWidth / (sliderStories.length + 1);
 
-    sliderStories.forEach((story, index) => {
-      positions[story.id] = {
-        x: spacing * (index + 1),
-        y: 150 + (index % 4) * 30
-      };
+    // Get rating range for normalization
+    const ratings = sliderStories.map(s => s.elo[selectedMetric].rating);
+    const minRating = Math.min(...ratings);
+    const maxRating = Math.max(...ratings);
+    const containerWidth = 1000; // adjust as needed
+
+    sliderStories.forEach((story) => {
+      const rating = story.elo[selectedMetric].rating;
+      const normX = maxRating === minRating ? 0.5 : (rating - minRating) / (maxRating - minRating);
+      const x = normX * (containerWidth - 100) + 50; // padding of 50 on each side
+      const y = 150 + Math.random() * 100; // randomize vertical position slightly
+
+      positions[story.id] = { x, y };
     });
+
     return positions;
   });
+
 
   const [draggedStory, setDraggedStory] = useState<Story | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -84,6 +98,38 @@ const StoryDragArea = () => {
   };
 
   const ranking = getHorizontalRanking();
+
+  const submitRanking = async () => {
+    const updates = ranking.map(story => ({
+      storyId: story.id,
+      newRating: storyPositions[story.id].x  // use actual dragged x-position
+    }));
+
+    const payload = {
+      tenantId,
+      metric: selectedMetric,
+      updates
+    };
+
+    try {
+      setIsSubmitting(true);
+      const res = await fetch(`${API_BASE}/elo/batchSliderUpdate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
+      await res.json();
+      setSuccess(true);
+      setTimeout(() => navigate('/'), 1500); // Navigate after 1.5 seconds
+    } catch (err) {
+      console.error(err);
+      alert('Failed to submit ranking');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const styles = {
     dragArea: {
@@ -195,22 +241,13 @@ const StoryDragArea = () => {
 
   return (
     <div>
-      <div
-        ref={dragAreaRef}
-        style={styles.dragArea}
-      >
+      <div ref={dragAreaRef} style={styles.dragArea}>
         {[...Array(10)].map((_, i) => (
-          <div 
-            key={i} 
-            style={{
-              ...styles.gridLine,
-              left: `${(i + 1) * 10}%`
-            } as CSSProperties}
-          />
+          <div key={i} style={{ ...styles.gridLine, left: `${(i + 1) * 10}%` }} />
         ))}
 
-        <div style={{ ...styles.label, ...styles.leftLabel } as CSSProperties}>← Smaller</div>
-        <div style={{ ...styles.label, ...styles.rightLabel } as CSSProperties}>Bigger →</div>
+        <div style={{ ...styles.label, ...styles.leftLabel }}>← Smaller</div>
+        <div style={{ ...styles.label, ...styles.rightLabel }}>Bigger →</div>
 
         {sliderStories.map((story, index) => {
           const position = storyPositions[story.id];
@@ -221,26 +258,21 @@ const StoryDragArea = () => {
           return (
             <div
               key={story.id}
-              style={{
-                ...styles.storyDot,
-                left: `${position.x}px`,
-                top: `${position.y}px`
-              } as CSSProperties}
+              style={{ ...styles.storyDot, left: `${position.x}px`, top: `${position.y}px` }}
             >
               {(isHovered || isDragged) && (
-                <div style={styles.tooltip as CSSProperties}>
+                <div style={styles.tooltip}>
                   <div>{story.title}</div>
                   <div>{Math.round(story.elo[selectedMetric].rating)}</div>
-                  <div style={styles.tooltipArrow as CSSProperties}></div>
+                  <div style={styles.tooltipArrow}></div>
                 </div>
               )}
-
               <div
                 style={{
                   ...styles.dot,
                   backgroundColor: color,
                   ...(isDragged ? styles.dotDragged : isHovered ? styles.dotHovered : {})
-                } as CSSProperties}
+                }}
                 onMouseDown={(e) => handleMouseDown(e, story)}
                 onMouseEnter={() => setHoveredStory(story)}
                 onMouseLeave={() => setHoveredStory(null)}
@@ -258,7 +290,7 @@ const StoryDragArea = () => {
           {ranking.map((story, index) => (
             <div key={story.id} style={styles.rankingItem}>
               <div style={styles.rankingLeft}>
-                <div style={{ ...styles.rankingDot, backgroundColor: colorPalette[story.origIndex % colorPalette.length], 'textAlign': 'center', 'color': 'white', 'fontWeight': 'bold' }}>{story.origIndex}</div>
+                <div style={{ ...styles.rankingDot, backgroundColor: colorPalette[story.origIndex % colorPalette.length], textAlign: 'center', color: 'white', fontWeight: 'bold' }}>{story.origIndex}</div>
                 <div>{story.title}</div>
               </div>
               <div>#{index + 1}</div>
@@ -266,6 +298,23 @@ const StoryDragArea = () => {
           ))}
         </div>
       </div>
+
+      <div style={{ marginTop: '2rem' }}>
+        <button
+          onClick={submitRanking}
+          style={{ padding: '0.75rem 1.5rem', backgroundColor: '#2563eb', color: 'white', borderRadius: '8px', fontWeight: 'bold' }}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Submitting...' : 'Submit Ranking'}
+        </button>
+      </div>
+
+      {success && (
+        <div className="alert alert-success mt-3" role="alert">
+          <i className="bi bi-check-circle-fill me-2"></i>
+          Ranking submitted successfully! Redirecting…
+        </div>
+      )}
     </div>
   );
 };

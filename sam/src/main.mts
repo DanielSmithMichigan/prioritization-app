@@ -3,6 +3,8 @@ import { fetchStory } from "./fetchStory.js";
 import { createStories } from "./createStories.js";
 import { getAllStories } from './getAllStories.js';
 import { rankStories } from './rankStories.js';
+import { batchUpdateRatings } from './batchSliderUpdateStories.js';
+
 
 import * as _ from 'lodash';
 
@@ -21,6 +23,12 @@ export const handler = async (event: any) => {
     const route = event.path;
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
+
+    if (route === "/elo/batchSliderUpdate" && method === "POST") {
+      const result = await batchUpdateRatings(body);
+      return { statusCode: 200, headers, body: JSON.stringify(result) };
+    }
+
 
     if (route === "/stories/getAll" && method === "POST") {
       const { tenantId, limit, nextToken } = body;
