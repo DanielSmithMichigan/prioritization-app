@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
-import { setStories, setSliderStories, setSelectedMetric, clearSession, setComparisons } from './store/comparisonSlice';
+import { setStories, setSliderStories, setSelectedMetric } from './store/comparisonSlice';
 import type { Story } from './types';
 
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
@@ -26,8 +26,6 @@ const PaginatedStoryListPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [sortKey, setSortKey] = useState<keyof Story['elo'] | ''>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [comparisonCount, _setComparisonCount] = useState(10);
-  const [useSliderMode, setUseSliderMode] = useState(false);
 
   const {
     data: fetchedStories = [],
@@ -43,6 +41,8 @@ const PaginatedStoryListPage: React.FC = () => {
       });
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
       const data = await res.json();
+      
+      dispatch(setStories(data.stories));
       return data.stories as Story[];
     },
   });
@@ -70,24 +70,10 @@ const PaginatedStoryListPage: React.FC = () => {
 
   const beginSliderSession = () => {
     const selectedStories = fetchedStories.filter(s => selectedIds.has(s.id));
-    const pairs: { leftId: string; rightId: string }[] = [];
 
-    for (let i = 0; i < selectedStories.length; i++) {
-      for (let j = i + 1; j < selectedStories.length; j++) {
-        pairs.push({ leftId: selectedStories[i].id, rightId: selectedStories[j].id });
-      }
-    }
-
-    const selectedComparisons = Array.from({ length: comparisonCount }, () => {
-      const pair = pairs[Math.floor(Math.random() * pairs.length)];
-      return { ...pair, metric };
-    });
-    dispatch(clearSession());
-    dispatch(setStories(selectedStories));
     dispatch(setSliderStories(selectedStories));
     dispatch(setSelectedMetric(metric));
-    dispatch(setComparisons(selectedComparisons));
-    navigate(useSliderMode ? '/prioritization-app/slider' : '/prioritization-app/rank');
+    navigate('/prioritization-app/slider');
   };
 
   if (isLoading) {
@@ -154,18 +140,6 @@ const PaginatedStoryListPage: React.FC = () => {
                   </div>
 
                   <div className="col-md-8 d-flex align-items-end gap-2">
-                    <div className="form-check me-3">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id="sliderModeCheckbox"
-                        checked={useSliderMode}
-                        onChange={(e) => setUseSliderMode(e.target.checked)}
-                      />
-                      <label className="form-check-label" htmlFor="sliderModeCheckbox">
-                        Use slider mode
-                      </label>
-                    </div>
                     <button className="btn btn-outline-secondary" onClick={selectAll} disabled={selectedIds.size === visibleStories.length}>
                       <i className="bi bi-check-all me-1"></i> Select All
                     </button>

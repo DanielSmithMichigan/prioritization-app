@@ -1,24 +1,16 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { type Story, type metricKeys } from '../types';
 
-export interface Comparison {
-  leftId: string;
-  rightId: string;
-  metric: metricKeys;
-}
-
 interface ComparisonState {
-  stories: Record<string, Story>;
+  stories: Story[];
   sliderStories: Story[];
-  comparisons: Comparison[];
   selectedMetric: metricKeys;
 }
 
 const initialState: ComparisonState = {
   selectedMetric: 'impact',
-  stories: {},
+  stories: [],
   sliderStories: [],
-  comparisons: [],
 };
 
 export const comparisonSlice = createSlice({
@@ -26,30 +18,11 @@ export const comparisonSlice = createSlice({
   initialState,
   reducers: {
     setStories(state, action: PayloadAction<Story[]>) {
-      for (const story of action.payload) {
-        state.stories[story.id] = story;
-      }
-    },
-    updateStories(state, action: PayloadAction<Story[]>) {
-      for (const story of action.payload) {
-        state.stories[story.id] = story;
-      }
-    },
-    removeStories(state, action: PayloadAction<string[]>) {
-      for (const id of action.payload) {
-        delete state.stories[id];
-      }
-    },
-    setComparisons(state, action: PayloadAction<Comparison[]>) {
-      state.comparisons = action.payload;
-    },
-    shiftComparison(state) {
-      state.comparisons.shift();
+      state.stories = action.payload;
     },
     clearSession(state) {
-      state.stories = {};
+      state.stories = [];
       state.sliderStories = [];
-      state.comparisons = [];
     },
     setSliderStories(state, action: PayloadAction<Story[]>) {
       state.sliderStories = action.payload;
@@ -62,10 +35,6 @@ export const comparisonSlice = createSlice({
 
 export const {
   setStories,
-  updateStories,
-  removeStories,
-  setComparisons,
-  shiftComparison,
   clearSession,
   setSliderStories,
   setSelectedMetric,

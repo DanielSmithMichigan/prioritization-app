@@ -15,9 +15,3 @@ export interface Story {
   category: string;
   elo: Record<metricKeys, EloRating>
 }
-
-export interface Comparison {
-  leftId: string;
-  rightId: string;
-  metric: keyof Story['elo'];
-}

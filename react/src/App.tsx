@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import ComparisonPage from './ComparisonPage';
+// import ComparisonPage from './ComparisonPage';
 import CreateStoriesPage from './CreateStoriesPage';
 import ViewStoriesPage from './ViewStoriesPage';
 import GraphPage from './GraphPage';
-import RankOrderingPage from './RankOrderingPage';
+// import RankOrderingPage from './RankOrderingPage';
 import SliderPage from './SliderPage';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -38,8 +38,8 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/prioritization-app/" element={<ViewStoriesPage />} />
             <Route path="/prioritization-app/create" element={<CreateStoriesPage />} />
-            <Route path="/prioritization-app/compare" element={<ComparisonPage />} />
-            <Route path="/prioritization-app/rank" element={<RankOrderingPage />} />
+            {/* <Route path="/prioritization-app/compare" element={<ComparisonPage />} />
+            <Route path="/prioritization-app/rank" element={<RankOrderingPage />} /> */}
             <Route path="/prioritization-app/slider" element={<SliderPage />} />
             <Route path="/prioritization-app/stories" element={<ViewStoriesPage />} />
             <Route path="/prioritization-app/graph" element={<GraphPage />} />
