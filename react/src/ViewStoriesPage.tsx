@@ -41,7 +41,7 @@ const PaginatedStoryListPage: React.FC = () => {
       });
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
       const data = await res.json();
-      
+
       dispatch(setStories(data.stories));
       return data.stories as Story[];
     },
@@ -127,7 +127,7 @@ const PaginatedStoryListPage: React.FC = () => {
                   <div className="col-md-4">
                     <label className="form-label fw-bold">Comparison Metric</label>
                     <select
-                      className="form-select form-select-lg"
+                      className="form-select form-select"
                       value={metric}
                       onChange={e => setMetric(e.target.value as keyof Story['elo'])}
                     >
@@ -138,21 +138,6 @@ const PaginatedStoryListPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-
-                  <div className="col-md-8 d-flex align-items-end gap-2">
-                    <button className="btn btn-outline-secondary" onClick={selectAll} disabled={selectedIds.size === visibleStories.length}>
-                      <i className="bi bi-check-all me-1"></i> Select All
-                    </button>
-                    <button className="btn btn-outline-secondary" onClick={clearAll} disabled={selectedIds.size === 0}>
-                      <i className="bi bi-x-square me-1"></i> Clear All
-                    </button>
-                    <button className="btn btn-success flex-grow-1" disabled={selectedIds.size < 2} onClick={beginSliderSession} style={{ fontWeight: '600' }}>
-                      <i className="bi bi-sliders me-2"></i> Begin Comparison ({selectedIds.size} selected)
-                    </button>
-                  </div>
-                </div>
-
-                <div className="row g-3 mb-3">
                   <div className="col-md-4">
                     <label className="form-label fw-bold">Filter by Category</label>
                     <select className="form-select" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
@@ -162,19 +147,10 @@ const PaginatedStoryListPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold">Sort by Metric</label>
-                    <select className="form-select" value={sortKey} onChange={e => setSortKey(e.target.value as keyof Story['elo'])}>
-                      <option value="">None</option>
-                      {metrics.map(m => (
-                        <option key={m} value={m}>{metricInfo[m].label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-4 d-flex align-items-end">
-                    <button className="btn btn-outline-primary w-100" onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')} disabled={!sortKey}>
-                      <i className={`bi bi-sort-${sortDirection === 'asc' ? 'down' : 'up'}-alt me-1`}></i>
-                      Sort {sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+
+                  <div className="col-md-4 d-flex align-items-end gap-2">
+                    <button className="btn btn-success flex-grow-1" disabled={selectedIds.size < 2} onClick={beginSliderSession} style={{ fontWeight: '600' }}>
+                      <i className="bi bi-sliders me-2"></i> Begin Comparison ({selectedIds.size} selected)
                     </button>
                   </div>
                 </div>
@@ -189,13 +165,26 @@ const PaginatedStoryListPage: React.FC = () => {
                             onChange={selectedIds.size === visibleStories.length ? clearAll : selectAll}
                           />
                         </th>
-                        <th>Story Title</th>
-                        <th>Category</th>
+                        <th style={{ width: '450px' }}>Story Title</th>
+                        <th style={{ width: '200px' }}>Category</th>
                         {metrics.map(m => (
-                          <th key={m} className="text-center">
+                          <th key={m} className="text-center" style={{ cursor: 'pointer' }}
+                            onClick={() => {
+                              if (sortKey === m) {
+                                setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                              } else {
+                                setSortKey(m);
+                                setSortDirection('asc');
+                              }
+                            }}
+                          >
                             <div className="d-flex flex-column align-items-center">
-                              <i className={`bi ${metricInfo[m].icon} text-${metricInfo[m].color} mb-1`}></i>
-                              <small>{metricInfo[m].label}</small>
+                              <div className="d-flex align-items-center gap-1">
+                                <small className="mb-0">{metricInfo[m].label}</small>
+                                {sortKey === m && (
+                                  <i className={`bi bi-caret-${sortDirection === 'asc' ? 'up' : 'down'}-fill`} style={{ fontSize: '1rem' }}></i>
+                                )}
+                              </div>
                             </div>
                           </th>
                         ))}
@@ -221,8 +210,9 @@ const PaginatedStoryListPage: React.FC = () => {
                             <div className="d-flex align-items-center">
                               {selectedIds.has(story.id) && <i className="bi bi-check-circle-fill text-success me-2"></i>}
                               <div>
-                                <div className="fw-semibold">{story.title}</div>
-                                {story.description && <small className="text-muted">{story.description}</small>}
+                                <div className="fw-semibold text-truncate" style={{ maxWidth: '450px' }} title={story.title}>
+                                  {story.title}
+                                </div>
                               </div>
                             </div>
                           </td>
