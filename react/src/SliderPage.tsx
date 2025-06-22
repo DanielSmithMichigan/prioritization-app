@@ -86,18 +86,30 @@ const StoryDragArea = () => {
 
   const [visibleMin, setVisibleMin] = useState(minRating);
   const [visibleMax, setVisibleMax] = useState(maxRating);
-
+  const [storyRatings, setStoryRatings] = useState<Record<string, number>>({});
   const [storyPositions, setStoryPositions] = useState<Record<string, { x: number; y: number }>>({});
+  useEffect(() => {
+    if (sliderStories.length === 0) return;
+
+    setStoryRatings(prev => {
+      // Only set if not already initialized
+      if (Object.keys(prev).length > 0) return prev;
+
+      const map: Record<string, number> = {};
+      sliderStories.forEach(story => {
+        map[story.id] = story.elo[selectedMetric].rating;
+      });
+      return map;
+    });
+  }, [sliderStories, selectedMetric]);
 
   useEffect(() => {
-    // guard: make sure layout is ready and container has width
-    if (containerWidth === 0 || sliderStories.length === 0) return;   // wait for first measurement
-
+    if (containerWidth === 0 || sliderStories.length === 0 || Object.keys(storyRatings).length === 0) return;
 
     const newPositions: Record<string, { x: number; y: number }> = {};
 
     sliderStories.forEach((story) => {
-      const rating = story.elo[selectedMetric].rating;
+      const rating = storyRatings[story.id];
       const normX = (rating - visibleMin) / (visibleMax - visibleMin);
       const x = normX * (containerWidth - 2 * padding) + padding;
       const y = initialYPositions.current[story.id];
@@ -105,7 +117,7 @@ const StoryDragArea = () => {
     });
 
     setStoryPositions(newPositions);
-  }, [visibleMin, visibleMax, sliderStories, containerWidth]);
+  }, [visibleMin, visibleMax, sliderStories, containerWidth, storyRatings]);
 
   useEffect(() => { if (containerWidth > 0 && sliderStories.length && Object.keys(storyPositions).length) { setPositionsReady(true); } }, [containerWidth, sliderStories.length, storyPositions]);
 
@@ -144,11 +156,12 @@ const StoryDragArea = () => {
     if (!draggedStory || !dragAreaRef.current) return;
     const rect = dragAreaRef.current.getBoundingClientRect();
     const newX = Math.max(padding, Math.min(rect.width - padding, e.clientX - rect.left - dragOffset.x));
-    const currentY = storyPositions[draggedStory.id].y;
+    const normalized = (newX - padding) / (rect.width - 2 * padding);
+    const newRating = visibleMin + normalized * (visibleMax - visibleMin);
 
-    setStoryPositions(prev => ({
+    setStoryRatings(prev => ({
       ...prev,
-      [draggedStory.id]: { x: newX, y: currentY }
+      [draggedStory.id]: newRating
     }));
   }, [draggedStory, dragOffset, storyPositions]);
 
@@ -321,7 +334,7 @@ const StoryDragArea = () => {
               {(isHovered || isDragged) && (
                 <div style={styles.tooltip}>
                   <div>{story.title}</div>
-                  <div>{Math.round(story.elo[selectedMetric].rating)}</div>
+                  <div>{Math.round(storyRatings[story.id])}</div>
                   <div style={styles.tooltipArrow}></div>
                 </div>
               )}
