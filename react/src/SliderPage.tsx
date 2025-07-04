@@ -1,10 +1,12 @@
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useContext } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import type { RootState } from './store';
 import type { Story, metricKeys } from './types';
 import type { CSSProperties } from 'react';
 import { styles } from './SliderStyles';
+import * as _ from 'lodash';
+import { WebSocketContext } from './SessionWebSocketProvider';
 
 const colorPalette = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#38bdf8', '#facc15', '#4ade80', '#fb7185'];
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
@@ -35,11 +37,78 @@ function useElementSize<T extends HTMLElement>() {
 }
 
 const StoryDragArea = () => {
+  const initialParticipants = useSelector((s: RootState) => s.session.participants);
+  const userId = useSelector((s: RootState) => s.session.userId);
+  const connectionId = useSelector((s: RootState) => s.session.connectionId);
+  const [participants, setParticipants] = useState(initialParticipants);
   const sliderStories: Story[] = useSelector((s: RootState) => s.comparison.sliderStories);
   const selectedMetric: metricKeys = useSelector((s: RootState) => s.comparison.selectedMetric);
   const allStories: Story[] = useSelector((s: RootState) => s.comparison.stories);
+  const sessionId = useSelector((s: RootState) => s.session.sessionId);
   const [positionsReady, setPositionsReady] = useState(false);
   const navigate = useNavigate();
+  const lastUpdateRef = useRef(0);
+
+  const { socket, ready } = useContext(WebSocketContext);
+
+  const metricToSentence = (metric: metricKeys) => {
+    switch (metric) {
+      case 'impact':
+        return 'Metric: What is the impact of this story?';
+      case 'estimatedTime':
+        return 'Metric: How long will this story take?';
+      case 'risk':
+        return 'Metric: What is the risk of this story?';
+      case 'visibility':
+        return 'Metric: What is the visibility of this story?';
+    }
+  };
+
+  useEffect(() => {
+    if (!ready || !socket.current) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      console.log("WebSocket raw message:", event.data);
+      try {
+        const data = JSON.parse(event.data);
+        console.log("Parsed WebSocket message:", data);
+
+        if (data.type === 'participantsUpdate' && Array.isArray(data.participants)) {
+          setParticipants(prev => {
+            const updated = [...prev];
+
+            for (const newP of data.participants) {
+              const idx = updated.findIndex(p => p.userName === newP.userName);
+              if (idx !== -1) {
+                // Replace the participant if found
+                updated[idx] = { ...updated[idx], completed: newP.completed };
+              } else {
+                // Add if this participant wasn't already known
+                updated.push(newP);
+              }
+            }
+
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.error("WebSocket message parse error:", err);
+      }
+    };
+
+
+    socket.current.addEventListener('message', handleMessage);
+
+    return () => socket.current?.removeEventListener('message', handleMessage);
+  }, [socket, ready]);
+
+  useEffect(() => {
+    if (participants.length > 0 && participants.every(p => p.completed)) {
+      console.log("All participants completed, redirecting to results...");
+      navigate('/prioritization-app/sessionResults');
+    }
+  }, [participants, navigate]);
+
 
 
   const initialYPositions = useRef<Record<string, number>>({});
@@ -104,10 +173,11 @@ const StoryDragArea = () => {
   }, [sliderStories, selectedMetric]);
 
   useEffect(() => {
-    if (containerWidth === 0 || sliderStories.length === 0 || Object.keys(storyRatings).length === 0) return;
+    if (containerWidth === 0 || sliderStories.length === 0 || Object.keys(storyRatings).length === 0) {
+      return;
+    }
 
     const newPositions: Record<string, { x: number; y: number }> = {};
-
     sliderStories.forEach((story) => {
       const rating = storyRatings[story.id];
       const normX = (rating - visibleMin) / (visibleMax - visibleMin);
@@ -116,7 +186,13 @@ const StoryDragArea = () => {
       newPositions[story.id] = { x, y };
     });
 
-    setStoryPositions(newPositions);
+    // Only update if positions actually changed
+    setStoryPositions(prev => {
+      if (_.isEqual(prev, newPositions)) {
+        return prev;
+      }
+      return newPositions;
+    });
   }, [visibleMin, visibleMax, sliderStories, containerWidth, storyRatings]);
 
   useEffect(() => { if (containerWidth > 0 && sliderStories.length && Object.keys(storyPositions).length) { setPositionsReady(true); } }, [containerWidth, sliderStories.length, storyPositions]);
@@ -154,6 +230,11 @@ const StoryDragArea = () => {
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!draggedStory || !dragAreaRef.current) return;
+
+    const now = Date.now();
+    if (now - lastUpdateRef.current < 16) return; // ~60fps throttle
+    lastUpdateRef.current = now;
+
     const rect = dragAreaRef.current.getBoundingClientRect();
     const newX = Math.max(padding, Math.min(rect.width - padding, e.clientX - rect.left - dragOffset.x));
     const normalized = (newX - padding) / (rect.width - 2 * padding);
@@ -200,24 +281,30 @@ const StoryDragArea = () => {
       };
     });
 
-    const payload = {
-      tenantId,
-      metric: selectedMetric,
-      updates
-    };
+    const ratingsMap = updates.reduce<Record<string, number>>((acc, item) => {
+      acc[item.storyId] = item.newRating;
+      return acc;
+    }, {});
 
     try {
       setIsSubmitting(true);
-      const res = await fetch(`${API_BASE}/elo/batchSliderUpdate`, {
+
+      const sessionFinishRes = await fetch(`${API_BASE}/session/finish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          connectionId: connectionId,
+          sessionId: sessionId,
+          userId: userId,
+          ratings: ratingsMap
+        })
       });
 
-      if (!res.ok) throw new Error(`Failed: ${res.status}`);
-      await res.json();
+      if (!sessionFinishRes.ok) throw new Error(`Failed to finish session: ${sessionFinishRes.status}`);
+      await sessionFinishRes.json();
+
       setSuccess(true);
-      setTimeout(() => navigate('/'), 1500);
+
     } catch (err) {
       console.error(err);
       alert('Failed to submit ranking');
@@ -229,6 +316,8 @@ const StoryDragArea = () => {
   return (
     <div>
       {!positionsReady && <div style={{ textAlign: 'center', padding: '1rem' }}>Loading&hellip;</div>}
+      <h2 className="mb-2 text-center">📊 Rating Results</h2>
+      <p className="text-center text-muted mb-4">{metricToSentence(selectedMetric)}</p>
       <div ref={dragAreaRef} style={{ ...styles.dragArea, ...dragAreaStyle }}>
         {/* Left Side Buttons */}
         <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, display: 'flex', flexDirection: 'column' }}>
@@ -357,6 +446,37 @@ const StoryDragArea = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: `0 ${padding}px`, marginBottom: '0.5rem' }}>
         <span>{Math.round(visibleMin)}</span>
         <span>{Math.round(visibleMax)}</span>
+      </div>
+
+      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: '1rem',
+          padding: '1rem 0'
+        }}>
+          {participants.map((p, i) => (
+            <div key={i} style={{
+              background: 'white',
+              borderRadius: '8px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+              minWidth: '200px',
+              textAlign: 'left'
+            }}>
+              <div style={{ fontWeight: 'bold', fontSize: '1.5rem' }}>{p.userName}</div>
+              <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', color: p.completed ? '#22c55e' : '#6b7280' }}>
+                {p.completed ? (
+                  <i className="bi bi-check-circle-fill" style={{ marginRight: '0.5rem' }}></i>
+                ) : (
+                  <i className="bi bi-clock" style={{ marginRight: '0.5rem' }}></i>
+                )}
+                <span>{p.completed ? 'Completed' : 'Pending'}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div style={{ marginTop: '2rem' }}>

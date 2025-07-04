@@ -2,7 +2,7 @@
 
 ## 📌 Overview
 
-This project is a tool to help teams prioritize work by comparing stories across multiple dimensions using pairwise ELO-style voting. Each story belongs to a category (e.g., _operations_, _accounting_, _technical_) which represents the functional area it benefits.
+This project is a tool to help teams prioritize work by comparing stories across multiple dimensions by assigning ratings to each story. These ratings can be translated to known metrics such as "story points." Each story belongs to a category (e.g., _operations_, _accounting_, _technical_) which represents the functional area it benefits.
 
 Team members participate in structured sessions where they compare pairs of stories based on metrics like:
 
@@ -11,7 +11,7 @@ Team members participate in structured sessions where they compare pairs of stor
 - **Risk of Unexpected Complexity**
 - **Visibility**
 
-Each comparison updates the respective ELO scores. The results are visualized on a graph using custom formulas, such as:
+In each session, multiple users will see a list of stories and they will put them somewhere along a slider. On the slider you will see some anchor stories that most users are familiar with.
 
 - **X-axis**: `estimatedTime / risk`
 - **Y-axis**: `impact`

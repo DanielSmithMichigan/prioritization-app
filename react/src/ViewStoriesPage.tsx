@@ -4,6 +4,8 @@ import { useDispatch } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import { setStories, setSliderStories, setSelectedMetric } from './store/comparisonSlice';
 import type { Story } from './types';
+import { v4 as uuidv4 } from 'uuid';
+import { setSessionId } from './store/sessionSlice';
 
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
 const tenantId = 'tenant-abc';
@@ -68,12 +70,41 @@ const PaginatedStoryListPage: React.FC = () => {
   const selectAll = () => setSelectedIds(new Set(visibleStories.map(s => s.id)));
   const clearAll = () => setSelectedIds(new Set());
 
-  const beginSliderSession = () => {
-    const selectedStories = fetchedStories.filter(s => selectedIds.has(s.id));
+  const handleCreateSession = async () => {
+    const selectedStoryIds = Array.from(selectedIds);
+    const newSessionId = uuidv4();
 
-    dispatch(setSliderStories(selectedStories));
-    dispatch(setSelectedMetric(metric));
-    navigate('/prioritization-app/slider');
+    try {
+      const response = await fetch(`${API_BASE}/session/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: newSessionId,
+          stories: selectedStoryIds,  // ✅ Only story IDs now
+          metric,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`Failed to create session: ${response.status}`);
+        alert("Failed to create rating session. Please try again.");
+        return;
+      }
+
+      const result = await response.json();
+      console.log("Session created:", result);
+
+      // Dispatch full selected stories locally (for immediate use in Redux slider session)
+      const selectedStories = fetchedStories.filter(s => selectedIds.has(s.id));
+      dispatch(setSliderStories(selectedStories));
+      dispatch(setSelectedMetric(metric));
+      dispatch(setSessionId(newSessionId));
+      navigate(`/prioritization-app/group/${newSessionId}`);
+
+    } catch (err) {
+      console.error("Error creating session:", err);
+      alert("An error occurred while creating the rating session.");
+    }
   };
 
   if (isLoading) {
@@ -149,8 +180,14 @@ const PaginatedStoryListPage: React.FC = () => {
                   </div>
 
                   <div className="col-md-4 d-flex align-items-end gap-2">
-                    <button className="btn btn-success flex-grow-1" disabled={selectedIds.size < 2} onClick={beginSliderSession} style={{ fontWeight: '600' }}>
-                      <i className="bi bi-sliders me-2"></i> Begin Comparison ({selectedIds.size} selected)
+                    <button
+                      className="btn btn-outline-primary"
+                      disabled={selectedIds.size < 2}
+                      onClick={handleCreateSession}
+                      style={{ fontWeight: '600' }}
+                    >
+                      <i className="bi bi-people-fill me-2"></i>
+                      Create Rating Session
                     </button>
                   </div>
                 </div>
@@ -208,11 +245,8 @@ const PaginatedStoryListPage: React.FC = () => {
                           </td>
                           <td>
                             <div className="d-flex align-items-center">
-                              {selectedIds.has(story.id) && <i className="bi bi-check-circle-fill text-success me-2"></i>}
-                              <div>
-                                <div className="fw-semibold text-truncate" style={{ maxWidth: '450px' }} title={story.title}>
-                                  {story.title}
-                                </div>
+                              <div className="fw-semibold text-truncate" style={{ maxWidth: '450px' }} title={story.title}>
+                                {story.title}
                               </div>
                             </div>
                           </td>

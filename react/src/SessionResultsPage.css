@@ -1,0 +1,53 @@
+/* SessionResultsPage.css */
+.dot-popover {
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.dot-popover-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid rgba(0, 0, 0, 0.8);
+}
+
+.dot-container:hover .dot-popover {
+  opacity: 1;
+}
+
+.percentile-marker {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.percentile-line {
+  width: 1px;
+  height: 10px;
+  background: #9ca3af;
+}
+
+.percentile-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 2px;
+}

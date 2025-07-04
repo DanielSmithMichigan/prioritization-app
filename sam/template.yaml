@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: ELO rating update Lambda for work prioritization app
 
@@ -8,8 +8,29 @@ Globals:
     Runtime: nodejs20.x
     MemorySize: 128
     Architectures: [x86_64]
+    Environment:
+      Variables:
+        STORIES_TABLE: !Ref StoriesTable
+        SESSION_TABLE: !Ref SessionConnectionsTable
+        SESSION_METADATA_TABLE: !Ref SessionMetadataTable
+        DOMAIN_NAME: !Sub "${GroupSessionWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com"
+        STAGE: Prod
+
 
 Resources:
+  StartSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: startSession.handler
+      CodeUri: dist
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionConnectionsTable
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/*/@connections/*"
+
   UpdateEloFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -26,10 +47,10 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:BatchGetItem
                 - dynamodb:BatchWriteItem
-              Resource: !GetAtt StoriesTable.Arn
-      Environment:
-        Variables:
-          STORIES_TABLE: !Ref StoriesTable
+              Resource:
+                - !GetAtt StoriesTable.Arn
+                - !GetAtt SessionMetadataTable.Arn
+                - !GetAtt SessionDataTable.Arn
       Events:
         CreateStoryAPI:
           Type: Api
@@ -67,6 +88,191 @@ Resources:
             Path: /elo/batchSliderUpdate
             Method: post
             RestApiId: !Ref EloApi
+        CreateSessionMetadataAPI:
+          Type: Api
+          Properties:
+            Path: /session/create
+            Method: post
+            RestApiId: !Ref EloApi
+        
+        GetSessionMetadataAPI:
+          Type: Api
+          Properties:
+            Path: /session/get
+            Method: get
+            RestApiId: !Ref EloApi
+
+  ConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: connect.handler
+      CodeUri: dist
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionConnectionsTable
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/*/@connections/*"
+
+  DisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: disconnect.handler
+      CodeUri: dist
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionConnectionsTable
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/*/@connections/*"
+
+  JoinSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: joinSession.handler
+      CodeUri: dist
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionConnectionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionDataTable
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/*/@connections/*"
+
+  FinishSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: finishSession.handler
+      CodeUri: dist
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionDataTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionConnectionsTable
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/*/@connections/*"
+      Environment:
+        Variables:
+          SESSION_DATA_TABLE: !Ref SessionDataTable
+          SESSION_CONNECTIONS_TABLE: !Ref SessionConnectionsTable
+          DOMAIN_NAME: !Sub "${GroupSessionWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com"
+          STAGE: Prod
+      Events:
+        FinishSessionAPI:
+          Type: Api
+          Properties:
+            Path: /session/finish
+            Method: post
+            RestApiId: !Ref EloApi
+
+  # Connect Integration and Route
+  ConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${FuncArn}/invocations
+        - { Region: !Ref AWS::Region, FuncArn: !GetAtt ConnectFunction.Arn }
+
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      RouteKey: $connect
+      Target: !Sub "integrations/${ConnectIntegration}"
+
+  # Disconnect Integration and Route
+  DisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${FuncArn}/invocations
+        - { Region: !Ref AWS::Region, FuncArn: !GetAtt DisconnectFunction.Arn }
+
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      RouteKey: $disconnect
+      Target: !Sub "integrations/${DisconnectIntegration}"
+
+  # JoinSession Integration and Route
+  JoinIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${FuncArn}/invocations
+        - { Region: !Ref AWS::Region, FuncArn: !GetAtt JoinSessionFunction.Arn }
+
+  JoinRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      RouteKey: joinSession
+      Target: !Sub "integrations/${JoinIntegration}"
+  
+  StartIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${FuncArn}/invocations
+        - { Region: !Ref AWS::Region, FuncArn: !GetAtt StartSessionFunction.Arn }
+    
+  StartRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      RouteKey: startSession
+      Target: !Sub "integrations/${StartIntegration}"
+
+  StartSessionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt StartSessionFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/startSession
+
+
+
+
+  ConnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ConnectFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/$connect
+
+  DisconnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt DisconnectFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/$disconnect
+
+  JoinSessionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt JoinSessionFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GroupSessionWebSocketApi}/*/joinSession
+
 
   StoriesTable:
     Type: AWS::DynamoDB::Table
@@ -82,6 +288,61 @@ Resources:
           KeyType: HASH
         - AttributeName: id
           KeyType: RANGE
+
+  SessionConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+        - AttributeName: sessionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connectionId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: sessionId-index
+          KeySchema:
+            - AttributeName: sessionId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  SessionMetadataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: SessionMetadata
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: sessionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sessionId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  SessionDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: SessionData
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: sessionId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sessionId
+          KeyType: HASH
+        - AttributeName: userId
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
   EloApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -90,5 +351,50 @@ Resources:
       Cors:
         AllowMethods: "'POST,OPTIONS'"
         AllowHeaders: "'Content-Type'"
-        AllowOrigin: "'*'"  # Or use your frontend's exact origin for production
+        AllowOrigin: "'*'"
+
+  GroupSessionWebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: GroupSessionWebSocketApi
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: "$request.body.action"
+
+  GroupSessionWebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref GroupSessionWebSocketApi
+      StageName: Prod
+      AutoDeploy: true
+
+  GetSessionRatingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getSessionRatings.handler
+      CodeUri: dist
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SessionDataTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SessionConnectionsTable
+      Environment:
+        Variables:
+          SESSION_DATA_TABLE: !Ref SessionDataTable
+          CONNECTIONS_TABLE: !Ref SessionConnectionsTable
+      Events:
+        GetSessionRatingsAPI:
+          Type: Api
+          Properties:
+            Path: /session/ratings
+            Method: get
+            RestApiId: !Ref EloApi
+
+
+Outputs:
+  WebSocketURL:
+    Description: WebSocket connection URL
+    Value: !Sub "wss://${GroupSessionWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+  FinishSessionApiUrl:
+    Description: URL for the Finish Session endpoint
+    Value: !Sub "https://${EloApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/session/finish"
 

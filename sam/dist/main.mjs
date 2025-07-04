@@ -4,12 +4,10 @@ import { createStories } from "./createStories.js";
 import { getAllStories } from './getAllStories.js';
 import { rankStories } from './rankStories.js';
 import { batchUpdateRatings } from './batchSliderUpdateStories.js';
-export const handler = async (event) => {
-    const headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
-    };
+import { handler as createSessionMetadata } from "./createSessionMetadata.js";
+import { handler as getSessionMetadata } from "./getSessionMetadata.js";
+import { headers } from './headers.js';
+export const handler = async (event, context, callback) => {
     if (event.httpMethod === "OPTIONS") {
         return { statusCode: 200, headers, body: "" };
     }
@@ -17,6 +15,13 @@ export const handler = async (event) => {
         const route = event.path;
         const method = event.httpMethod;
         const body = event.body ? JSON.parse(event.body) : {};
+        if (route === "/session/create" && method === "POST") {
+            console.log('creating session');
+            return await createSessionMetadata(event, context, callback);
+        }
+        if (route === "/session/get" && method === "GET") {
+            return await getSessionMetadata(event, context, callback);
+        }
         if (route === "/elo/batchSliderUpdate" && method === "POST") {
             const result = await batchUpdateRatings(body);
             return { statusCode: 200, headers, body: JSON.stringify(result) };

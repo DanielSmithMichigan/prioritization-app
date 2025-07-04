@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
 import comparisonReducer from './comparisonSlice';
+import sessionReducer from './sessionSlice';
 
 export const store = configureStore({
   reducer: {
     comparison: comparisonReducer,
+    session: sessionReducer,
   },
 });
 

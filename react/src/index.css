@@ -67,3 +67,10 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.dot-popover {
+  opacity: 0;
+}
+div:hover > .dot-popover {
+  opacity: 1;
+}
