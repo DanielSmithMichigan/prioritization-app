@@ -10,7 +10,6 @@ import { WebSocketContext } from './SessionWebSocketProvider';
 
 const colorPalette = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#38bdf8', '#facc15', '#4ade80', '#fb7185'];
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
-const tenantId = 'tenant-abc';
 
 function useElementSize<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
