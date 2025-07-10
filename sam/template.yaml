@@ -10,9 +10,13 @@ Globals:
     Architectures: [x86_64]
     Environment:
       Variables:
+        AUTH0_DOMAIN: "dev-cvviyk1ewbdlxtcc.us.auth0.com"
+        AUTH0_CLIENT_ID: "Np0DKpoOLEnyi8mupOx1V5ierOgLyclY"
         STORIES_TABLE: !Ref StoriesTable
         SESSION_TABLE: !Ref SessionConnectionsTable
         SESSION_METADATA_TABLE: !Ref SessionMetadataTable
+        INVITES_TABLE: !Ref InvitesTable
+        TENANTS_TABLE: !Ref TenantsTable
         DOMAIN_NAME: !Sub "${GroupSessionWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com"
         STAGE: Prod
 
@@ -94,12 +98,27 @@ Resources:
             Path: /session/create
             Method: post
             RestApiId: !Ref EloApi
-        
         GetSessionMetadataAPI:
           Type: Api
           Properties:
             Path: /session/get
             Method: get
+            RestApiId: !Ref EloApi
+
+  CreateInviteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: createInvite.createInvite
+      CodeUri: dist
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InvitesTable
+      Events:
+        CreateInviteAPI:
+          Type: Api
+          Properties:
+            Path: /api/invites
+            Method: post
             RestApiId: !Ref EloApi
 
   ConnectFunction:
@@ -138,6 +157,8 @@ Resources:
             TableName: !Ref SessionConnectionsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref SessionDataTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionMetadataTable
         - Statement:
             - Effect: Allow
               Action: execute-api:ManageConnections
@@ -343,6 +364,33 @@ Resources:
         AttributeName: ttl
         Enabled: true
 
+  InvitesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Invites
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: inviteToken
+          AttributeType: S
+      KeySchema:
+        - AttributeName: inviteToken
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  TenantsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Tenants
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: tenantId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: tenantId
+          KeyType: HASH
+
   EloApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -350,7 +398,7 @@ Resources:
       StageName: Prod
       Cors:
         AllowMethods: "'POST,OPTIONS'"
-        AllowHeaders: "'Content-Type'"
+        AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: "'*'"
 
   GroupSessionWebSocketApi:

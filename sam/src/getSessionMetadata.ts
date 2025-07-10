@@ -1,12 +1,8 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
-
-const headers = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
-};
+import { authenticate } from './auth.js';
+import { headers } from './headers.js';
 
 const client = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(client);
@@ -15,6 +11,26 @@ const tableName = process.env.SESSION_METADATA_TABLE!;
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
+    const token = event.headers.Authorization?.split(' ')[1];
+
+    if (!token) {
+      return {
+        headers,
+        statusCode: 403,
+        body: JSON.stringify({ message: 'Unauthorized' }),
+      };
+    }
+
+    const user = await authenticate(token);
+
+    if (!user) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ message: 'Unauthorized' }),
+      };
+    }
+
     const sessionId = event.queryStringParameters?.sessionId;
     if (!sessionId) {
       return {

@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DynamoDBDocumentClient, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { authenticate, getTenantId } from './auth.js';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { headers } from './headers.js';
 
 const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE_NAME = process.env.STORIES_TABLE!;
@@ -18,12 +21,43 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
-export async function createStories(input: {
-  tenantId: string;
-  userId: string;
-  titles: string[];
-}): Promise<{ inserted: number }> {
-  const { tenantId, titles } = input;
+export async function createStories(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  const token = event.headers.Authorization?.split(' ')[1];
+
+  if (!token) {
+    return {
+      headers,
+      statusCode: 403,
+      body: JSON.stringify({ message: 'Unauthorized' }),
+    };
+  }
+
+  const user = await authenticate(token);
+
+  if (!user) {
+    return {
+      headers,
+      statusCode: 401,
+      body: JSON.stringify({ message: 'Unauthorized' }),
+    };
+  }
+
+  const tenantId = getTenantId(user);
+
+  if (!event.body) {
+    return {
+      headers,
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Bad Request: Missing event body' }),
+    };
+  }
+
+  const input: {
+    userId: string;
+    titles: string[];
+  } = JSON.parse(event.body);
+
+  const { titles } = input;
 
   const stories = titles.map(rawTitle => {
     let category = 'uncategorized';
@@ -69,5 +103,9 @@ export async function createStories(input: {
     }));
   }
 
-  return { inserted: stories.length };
+  return {
+    headers,
+    statusCode: 200,
+    body: JSON.stringify({ inserted: stories.length }),
+  };
 }

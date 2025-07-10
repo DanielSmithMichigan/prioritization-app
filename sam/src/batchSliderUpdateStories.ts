@@ -4,6 +4,9 @@ import {
   BatchGetCommand,
   BatchWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { authenticate, getTenantId } from './auth.js';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { headers } from './headers.js';
 
 const TABLE_NAME = process.env.STORIES_TABLE!;
 const rawClient = new DynamoDBClient({});
@@ -34,11 +37,42 @@ const chunk = <T>(arr: T[], size: number): T[][] =>
     arr.slice(i * size, i * size + size)
   );
 
-export const batchUpdateRatings = async (event: UpdatePayload) => {
-  const metric = event.metric;
+export const batchUpdateRatings = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  const token = event.headers.Authorization?.split(' ')[1];
+
+  if (!token) {
+    return {
+      headers,
+      statusCode: 403,
+      body: JSON.stringify({ message: 'Unauthorized' }),
+    };
+  }
+
+  const user = await authenticate(token);
+
+  if (!user) {
+    return {
+      headers,
+      statusCode: 401,
+      body: JSON.stringify({ message: 'Unauthorized' }),
+    };
+  }
+
+  const tenantId = getTenantId(user);
+
+  if (!event.body) {
+    return {
+      headers,
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Bad Request: Missing event body' }),
+    };
+  }
+
+  const payload: UpdatePayload = JSON.parse(event.body);
+  const metric = payload.metric;
 
   // Deduplicate story IDs
-  const storyIds = Array.from(new Set(event.updates.map(u => u.storyId)));
+  const storyIds = Array.from(new Set(payload.updates.map(u => u.storyId)));
 
   // 1) Batch-get all the affected stories, including tenantId in each Key
   const storiesById: Record<string, StoryItem> = {};
@@ -47,7 +81,7 @@ export const batchUpdateRatings = async (event: UpdatePayload) => {
       RequestItems: {
         [TABLE_NAME]: {
           Keys: idsChunk.map(id => ({
-            tenantId: "tenant-abc",
+            tenantId,
             id,
           })),
         },
@@ -63,7 +97,7 @@ export const batchUpdateRatings = async (event: UpdatePayload) => {
   }
 
   // 2) Apply the rating updates in-memory
-  for (const { storyId, newRating } of event.updates) {
+  for (const { storyId, newRating } of payload.updates) {
     const story = storiesById[storyId];
     if (story) {
       story.elo[metric].rating = newRating;
@@ -85,6 +119,7 @@ export const batchUpdateRatings = async (event: UpdatePayload) => {
 
   return {
     statusCode: 200,
+    headers,
     body: JSON.stringify({
       message: "Ratings updated successfully",
       updated: updatedStories.length,

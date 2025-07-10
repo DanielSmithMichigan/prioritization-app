@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ApiGatewayManagementApiClient, PostToConnectionCommand } from '@aws-sdk/client-apigatewaymanagementapi';
 import { headers } from './headers.js';
+import { authenticate, getTenantId } from './auth.js';
 const client = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(client);
 const dataTable = process.env.SESSION_DATA_TABLE;
@@ -14,6 +15,23 @@ export const handler = async (event) => {
         return { statusCode: 200, headers, body: "" };
     }
     try {
+        const token = event.headers.Authorization?.split(' ')[1];
+        if (!token) {
+            return {
+                headers,
+                statusCode: 403,
+                body: JSON.stringify({ message: 'Unauthorized' }),
+            };
+        }
+        const user = await authenticate(token);
+        if (!user) {
+            return {
+                statusCode: 401,
+                headers,
+                body: JSON.stringify({ message: 'Unauthorized' }),
+            };
+        }
+        const tenantId = getTenantId(user);
         const body = JSON.parse(event.body || '{}');
         const { sessionId, ratings, userId, connectionId } = body;
         if (!sessionId || !ratings || !userId || !connectionId || typeof ratings !== 'object') {
@@ -32,6 +50,7 @@ export const handler = async (event) => {
                 userId,
                 ratings,
                 completed: true,
+                tenantId,
             },
         }));
         // 2) Fetch this participant's session connection to get their userName

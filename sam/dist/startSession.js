@@ -1,6 +1,8 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ApiGatewayManagementApiClient, PostToConnectionCommand } from '@aws-sdk/client-apigatewaymanagementapi';
+import { authenticate } from './auth.js';
+import { headers } from './headers.js';
 const client = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(client);
 const tableName = process.env.SESSION_TABLE;
@@ -10,10 +12,31 @@ const api = new ApiGatewayManagementApiClient({
     endpoint: `https://${domain}/${stage}`
 });
 export const handler = async (event) => {
-    const connectionId = event.requestContext.connectionId;
     const body = JSON.parse(event.body || '{}');
     const { sessionId } = body;
-    // Fetch all connections in this session
+    const connectionId = event.requestContext.connectionId;
+    const connectionRecord = await ddb.send(new GetCommand({
+        TableName: tableName,
+        Key: {
+            connectionId
+        }
+    }));
+    const token = connectionRecord.Item?.token;
+    if (!token) {
+        return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ message: 'Unauthorized' }),
+        };
+    }
+    const user = await authenticate(token);
+    if (!user) {
+        return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ message: 'Unauthorized' }),
+        };
+    }
     const scan = await ddb.send(new ScanCommand({
         TableName: tableName,
         FilterExpression: 'sessionId = :sid',
@@ -24,5 +47,8 @@ export const handler = async (event) => {
         Data: Buffer.from(JSON.stringify({ type: 'start' }))
     }))) ?? [];
     await Promise.allSettled(broadcast);
-    return { statusCode: 200 };
+    return {
+        statusCode: 200,
+        headers,
+    };
 };

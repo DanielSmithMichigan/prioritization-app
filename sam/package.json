@@ -3,17 +3,21 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "deploy": "sam build; sam deploy"
+    "deploy": "tsc && cp -f package.json dist/package.json && \"C:/Program Files/Amazon/AWSSAMCLI/bin/sam.cmd\" build && \"C:/Program Files/Amazon/AWSSAMCLI/bin/sam.cmd\" deploy"
   },
   "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0",
+    "uuid": "^11.1.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
     "@aws-sdk/client-apigatewaymanagementapi": "^3.835.0",
     "@aws-sdk/client-dynamodb": "^3.828.0",
     "@aws-sdk/lib-dynamodb": "^3.828.0",
     "@aws-sdk/util-dynamodb": "^3.828.0",
-    "lodash": "^4.17.21"
-  },
-  "devDependencies": {
     "@types/aws-lambda": "^8.10.150",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/lodash": "^4.17.17",
     "@types/node": "^24.0.3",
     "aws-lambda": "^1.0.7",
