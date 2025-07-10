@@ -6,10 +6,33 @@ import GraphPage from './GraphPage';
 import SliderPage from './SliderPage';
 import GroupSessionPage from './GroupSessionPage';
 import SessionResultsPage from './SessionResultPage';
+import { useAuth0 } from '@auth0/auth0-react';
+import PrivateRoute from './PrivateRoute';
 
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { SessionWebSocketProvider } from './SessionWebSocketProvider';
+import LoginPage from './LoginPage';
+
+const NavbarAuthButtons = () => {
+  const { loginWithRedirect, logout, isAuthenticated } = useAuth0();
+
+  return (
+    <>
+      {isAuthenticated ? (
+        <button className="btn btn-outline-light ms-3"
+          onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+        >
+          Log Out
+        </button>
+      ) : (
+        <button className="btn btn-primary ms-3" onClick={() => loginWithRedirect()}>
+          Log In
+        </button>
+      )}
+    </>
+  );
+};
 
 const App: React.FC = () => {
   return (
@@ -25,7 +48,7 @@ const App: React.FC = () => {
             <div className="collapse navbar-collapse" id="navbarNav">
               <ul className="navbar-nav">
                 <li className="nav-item">
-                  <NavLink to="/prioritization-app/" end className="nav-link">View Stories</NavLink>
+                  <NavLink to="/prioritization-app/stores" end className="nav-link">View Stories</NavLink>
                 </li>
                 <li className="nav-item">
                   <NavLink to="/prioritization-app/create" className="nav-link">Create Stories</NavLink>
@@ -35,17 +58,73 @@ const App: React.FC = () => {
                 </li>
               </ul>
             </div>
+
+            <NavbarAuthButtons />
           </nav>
 
           <main className="flex-fill p-3">
             <Routes>
-              <Route path="/prioritization-app/" element={<ViewStoriesPage />} />
-              <Route path="/prioritization-app/create" element={<CreateStoriesPage />} />
-              <Route path="/prioritization-app/group/:sessionId" element={<GroupSessionPage />} />
-              <Route path="/prioritization-app/slider" element={<SliderPage />} />
-              <Route path="/prioritization-app/stories" element={<ViewStoriesPage />} />
-              <Route path="/prioritization-app/graph" element={<GraphPage />} />
-              <Route path="/prioritization-app/sessionResults" element={<SessionResultsPage />} />
+              {/* Public login page */}
+              <Route path="/prioritization-app/login" element={<LoginPage />} />
+
+              {/* All other routes are protected */}
+              <Route
+                path="/prioritization-app/"
+                element={
+                  <PrivateRoute>
+                    <ViewStoriesPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/prioritization-app/create"
+                element={
+                  <PrivateRoute>
+                    <CreateStoriesPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/prioritization-app/group/:sessionId"
+                element={
+                  <PrivateRoute>
+                    <GroupSessionPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/prioritization-app/slider"
+                element={
+                  <PrivateRoute>
+                    <SliderPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/prioritization-app/stories"
+                element={
+                  <PrivateRoute>
+                    <ViewStoriesPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/prioritization-app/graph"
+                element={
+                  <PrivateRoute>
+                    <GraphPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/prioritization-app/sessionResults"
+                element={
+                  <PrivateRoute>
+                    <SessionResultsPage />
+                  </PrivateRoute>
+                }
+              />
+
               <Route path="*" element={<Navigate to="/prioritization-app/" replace />} />
             </Routes>
           </main>

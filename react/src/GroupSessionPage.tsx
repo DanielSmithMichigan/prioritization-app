@@ -7,10 +7,10 @@ import type { Story } from './types';
 import { WebSocketContext } from './SessionWebSocketProvider';
 import type { RootState } from './store';
 import { useSelector } from 'react-redux';
+import { useAuth0 } from '@auth0/auth0-react';
 
 
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
-const tenantId = 'tenant-abc';
 
 const GroupSessionPage: React.FC = () => {
   const userId = useSelector((s: RootState) => s.session.userId);
@@ -22,6 +22,7 @@ const GroupSessionPage: React.FC = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { getAccessTokenSilently } = useAuth0();
 
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -36,6 +37,12 @@ const GroupSessionPage: React.FC = () => {
 
     if (!ready || !socket.current) {
       console.error("WebSocket not ready yet");
+      return;
+    }
+
+    if (socket.current.readyState !== WebSocket.OPEN) {
+      console.error("Cannot send message: WebSocket is not open");
+      alert("Lost connection to the server. Please refresh and try again.");
       return;
     }
 
@@ -64,8 +71,17 @@ const GroupSessionPage: React.FC = () => {
     if (!ready || !socket.current) return;
 
     console.log('WebSocket Ready');
+    socket.current.onerror = (event) => {
+      console.error("WebSocket error event:", event);
+    };
+
+    socket.current.onclose = (event) => {
+      console.warn("WebSocket connection closed:", event);
+      alert("Connection lost. Please refresh the page or try again later.");
+    };
 
     socket.current.onmessage = (event) => {
+      console.log(event);
       try {
         const data = JSON.parse(event.data);
         console.log(data);
@@ -98,16 +114,24 @@ const GroupSessionPage: React.FC = () => {
     if (joined) {
       const fetchSessionMetadata = async () => {
         try {
+          const token = await getAccessTokenSilently();
           // 1) Fetch session metadata (will contain story IDs and metric)
-          const res = await fetch(`${API_BASE}/session/get?sessionId=${sessionId}`);
+          const res = await fetch(`${API_BASE}/session/get?sessionId=${sessionId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
           if (!res.ok) throw new Error(`Failed to fetch session metadata: ${res.status}`);
           const sessionData = await res.json();
 
           // 2) Fetch all stories for the tenant
           const storiesRes = await fetch(`${API_BASE}/stories/getAll`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tenantId, limit: 500 }),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ limit: 500 }),
           });
           if (!storiesRes.ok) throw new Error(`Failed to fetch stories: ${storiesRes.status}`);
           const storiesData = await storiesRes.json();
@@ -137,7 +161,7 @@ const GroupSessionPage: React.FC = () => {
 
       fetchSessionMetadata();
     }
-  }, [joined, sessionId, dispatch]);
+  }, [joined, sessionId, dispatch, getAccessTokenSilently]);
 
   return (
     <div className="container py-5">

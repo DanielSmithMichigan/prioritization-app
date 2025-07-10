@@ -6,9 +6,9 @@ import { setStories, setSliderStories, setSelectedMetric } from './store/compari
 import type { Story } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { setSessionId } from './store/sessionSlice';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
-const tenantId = 'tenant-abc';
 
 const metrics: (keyof Story['elo'])[] = ['impact', 'estimatedTime', 'risk', 'visibility'];
 
@@ -22,6 +22,7 @@ const metricInfo = {
 const PaginatedStoryListPage: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { getAccessTokenSilently } = useAuth0();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [metric, setMetric] = useState<keyof Story['elo']>('impact');
@@ -36,10 +37,14 @@ const PaginatedStoryListPage: React.FC = () => {
   } = useQuery({
     queryKey: ['stories'],
     queryFn: async () => {
+      const token = await getAccessTokenSilently();
       const res = await fetch(`${API_BASE}/stories/getAll`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId, limit: 100 }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ limit: 100 }),
       });
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
       const data = await res.json();
@@ -75,9 +80,13 @@ const PaginatedStoryListPage: React.FC = () => {
     const newSessionId = uuidv4();
 
     try {
+      const token = await getAccessTokenSilently();
       const response = await fetch(`${API_BASE}/session/create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           sessionId: newSessionId,
           stories: selectedStoryIds,  // ✅ Only story IDs now

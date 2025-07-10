@@ -8,16 +8,20 @@ import {
     quantile,
 } from 'd3';
 import type { Story } from './types';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
-const tenantId = 'tenant-abc';
 const M = { top: 20, right: 30, bottom: 40, left: 70 };
 
-async function fetchStories(): Promise<Story[]> {
+async function fetchStories(getAccessTokenSilently: Function): Promise<Story[]> {
+    const token = await getAccessTokenSilently();
     const res = await fetch(`${API_BASE}/stories/getAll`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId, limit: 500 }),
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ limit: 500 }),
     });
     if (!res.ok) throw new Error('Fetch failed');
     const { stories } = await res.json();
@@ -28,9 +32,10 @@ const clampNorm = (v: number, minV: number, maxV: number): number =>
     maxV === minV ? 5 : 0.5 + 9 * (v - minV) / (maxV - minV);
 
 const GraphPage: React.FC = () => {
+    const { getAccessTokenSilently } = useAuth0();
     const { data: stories = [], isLoading, error } = useQuery({
         queryKey: ['stories'],
-        queryFn: fetchStories,
+        queryFn: () => fetchStories(getAccessTokenSilently),
     });
 
     const [categoryFilter, setCategoryFilter] = useState<string>('all');

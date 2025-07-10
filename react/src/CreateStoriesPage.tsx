@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth0 } from "@auth0/auth0-react";
 
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
-const tenantId = 'tenant-abc';
 const userId = 'user-123';
 
 async function createStoriesRequest(input: {
-  tenantId: string;
   userId: string;
   titles: string[];
+  getAccessTokenSilently: Function;
 }): Promise<{ inserted: number }> {
+  const token = await input.getAccessTokenSilently();
   const res = await fetch(`${API_BASE}/story/create`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
     body: JSON.stringify(input),
   });
 
@@ -25,6 +29,7 @@ async function createStoriesRequest(input: {
 
 const CreateStoriesPage: React.FC = () => {
   const [input, setInput] = useState('');
+  const { getAccessTokenSilently } = useAuth0();
   const queryClient = useQueryClient();
 
   const {
@@ -48,7 +53,7 @@ const CreateStoriesPage: React.FC = () => {
     if (lines.length === 0) return;
 
     try {
-      await createStories({ tenantId, userId, titles: lines });
+      await createStories({ userId, titles: lines, getAccessTokenSilently });
       setInput('');
     } catch (err) {
       console.error(err);

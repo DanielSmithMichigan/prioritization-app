@@ -9,7 +9,6 @@ interface EloRating {
 
 export interface Story {
   id: string;
-  tenantId: string;
   title: string;
   description?: string;
   category: string;

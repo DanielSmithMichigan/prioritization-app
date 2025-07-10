@@ -7,6 +7,7 @@ import type { CSSProperties } from 'react';
 import { styles } from './SliderStyles';
 import * as _ from 'lodash';
 import { WebSocketContext } from './SessionWebSocketProvider';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const colorPalette = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#f472b6', '#38bdf8', '#facc15', '#4ade80', '#fb7185'];
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
@@ -47,6 +48,7 @@ const StoryDragArea = () => {
   const [positionsReady, setPositionsReady] = useState(false);
   const navigate = useNavigate();
   const lastUpdateRef = useRef(0);
+  const { getAccessTokenSilently } = useAuth0();
 
   const { socket, ready } = useContext(WebSocketContext);
 
@@ -287,10 +289,14 @@ const StoryDragArea = () => {
 
     try {
       setIsSubmitting(true);
+      const token = await getAccessTokenSilently();
 
       const sessionFinishRes = await fetch(`${API_BASE}/session/finish`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           connectionId: connectionId,
           sessionId: sessionId,

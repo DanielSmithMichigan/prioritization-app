@@ -5,6 +5,7 @@ import './SessionResultsPage.css';
 import Collapsible from './Collapsible';
 import './Collapsible.css';
 import { type metricKeys } from './types';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const colorPalette = [
   '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa',
@@ -40,6 +41,7 @@ const SessionResultsPage: React.FC = () => {
   const sessionId = useSelector((s: RootState) => s.session.sessionId);
   const stories = useSelector((s: RootState) => s.comparison.sliderStories);
   const selectedMetric = useSelector((s: RootState) => s.comparison.selectedMetric);
+  const { getAccessTokenSilently } = useAuth0();
 
   const [participants, setParticipants] = useState<{ userId: string; userName: string; ratings: Record<string, number> }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +55,12 @@ const SessionResultsPage: React.FC = () => {
     const fetchRatings = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/session/ratings?sessionId=${sessionId}`);
+        const token = await getAccessTokenSilently();
+        const res = await fetch(`${API_BASE}/session/ratings?sessionId=${sessionId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (!res.ok) throw new Error(`Failed: ${res.status}`);
         const data = await res.json();
         console.log(data);
@@ -67,7 +74,7 @@ const SessionResultsPage: React.FC = () => {
     };
 
     fetchRatings()
-  }, [sessionId]);
+  }, [sessionId, getAccessTokenSilently]);
 
   const participantsWithColor = participants.map((p, i) => ({
     ...p,
@@ -82,9 +89,13 @@ const SessionResultsPage: React.FC = () => {
     });
 
     try {
+      const token = await getAccessTokenSilently();
       const res = await fetch(`${API_BASE}/elo/batchSliderUpdate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ metric: selectedMetric, updates }),
       });
 
