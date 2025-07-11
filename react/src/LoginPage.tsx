@@ -12,7 +12,7 @@ const LoginPage: React.FC = () => {
 
     if (isAuthenticated) {
       // After login, redirect to where the user intended to go, or fallback
-      const from = (location.state as { from?: Location })?.from?.pathname || '/prioritization-app/';
+      const from = (location.state as { from?: Location })?.from?.pathname || '/';
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, isLoading, location, navigate]);

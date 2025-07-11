@@ -7,26 +7,10 @@ import {
     axisLeft,
     quantile,
 } from 'd3';
-import type { Story } from './types';
+import { fetchAllStories } from './api/storyApi';
 import { useAuth0 } from '@auth0/auth0-react';
 
-const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
 const M = { top: 20, right: 30, bottom: 40, left: 70 };
-
-async function fetchStories(getAccessTokenSilently: Function): Promise<Story[]> {
-    const token = await getAccessTokenSilently();
-    const res = await fetch(`${API_BASE}/stories/getAll`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ limit: 500 }),
-    });
-    if (!res.ok) throw new Error('Fetch failed');
-    const { stories } = await res.json();
-    return stories as Story[];
-}
 
 const clampNorm = (v: number, minV: number, maxV: number): number =>
     maxV === minV ? 5 : 0.5 + 9 * (v - minV) / (maxV - minV);
@@ -35,7 +19,7 @@ const GraphPage: React.FC = () => {
     const { getAccessTokenSilently } = useAuth0();
     const { data: stories = [], isLoading, error } = useQuery({
         queryKey: ['stories'],
-        queryFn: () => fetchStories(getAccessTokenSilently),
+        queryFn: () => fetchAllStories(getAccessTokenSilently),
     });
 
     const [categoryFilter, setCategoryFilter] = useState<string>('all');

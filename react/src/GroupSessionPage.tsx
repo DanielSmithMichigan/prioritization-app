@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setParticipants, setSessionId, setConnectionId } from './store/sessionSlice';
 import { setSelectedMetric, setSliderStories } from './store/comparisonSlice';
-import type { Story } from './types';
 import { WebSocketContext } from './SessionWebSocketProvider';
 import type { RootState } from './store';
 import { useSelector } from 'react-redux';
+import { fetchAllStories } from './api/storyApi';
 import { useAuth0 } from '@auth0/auth0-react';
+import type { Story } from './types';
 
 
 const API_BASE = import.meta.env.VITE_ELO_API_BASE!;
@@ -96,7 +97,7 @@ const GroupSessionPage: React.FC = () => {
           dispatch(setParticipants(data.users.map((u: string) => ({ userName: u, completed: false }))));
         }
         if (data.type === 'start') {
-          navigate(`/prioritization-app/slider`);
+          navigate(`/slider`);
         }
       } catch (err) {
         console.error('WebSocket message parse error:', err);
@@ -125,18 +126,7 @@ const GroupSessionPage: React.FC = () => {
           const sessionData = await res.json();
 
           // 2) Fetch all stories for the tenant
-          const storiesRes = await fetch(`${API_BASE}/stories/getAll`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ limit: 500 }),
-          });
-          if (!storiesRes.ok) throw new Error(`Failed to fetch stories: ${storiesRes.status}`);
-          const storiesData = await storiesRes.json();
-
-          const allStories: Story[] = storiesData.stories;
+          const allStories = await fetchAllStories(getAccessTokenSilently);
 
           // 3) Match session story IDs to full story objects
           const matchedStories = sessionData.stories

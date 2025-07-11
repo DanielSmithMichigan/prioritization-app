@@ -48,13 +48,13 @@ const App: React.FC = () => {
             <div className="collapse navbar-collapse" id="navbarNav">
               <ul className="navbar-nav">
                 <li className="nav-item">
-                  <NavLink to="/prioritization-app/stores" end className="nav-link">View Stories</NavLink>
+                  <NavLink to="/stores" end className="nav-link">View Stories</NavLink>
                 </li>
                 <li className="nav-item">
-                  <NavLink to="/prioritization-app/create" className="nav-link">Create Stories</NavLink>
+                  <NavLink to="/create" className="nav-link">Create Stories</NavLink>
                 </li>
                 <li className="nav-item">
-                  <NavLink to="/prioritization-app/graph" className="nav-link">View Graph</NavLink>
+                  <NavLink to="/graph" className="nav-link">View Graph</NavLink>
                 </li>
               </ul>
             </div>
@@ -65,11 +65,11 @@ const App: React.FC = () => {
           <main className="flex-fill p-3">
             <Routes>
               {/* Public login page */}
-              <Route path="/prioritization-app/login" element={<LoginPage />} />
+              <Route path="/login" element={<LoginPage />} />
 
               {/* All other routes are protected */}
               <Route
-                path="/prioritization-app/"
+                path="/"
                 element={
                   <PrivateRoute>
                     <ViewStoriesPage />
@@ -77,7 +77,7 @@ const App: React.FC = () => {
                 }
               />
               <Route
-                path="/prioritization-app/create"
+                path="/create"
                 element={
                   <PrivateRoute>
                     <CreateStoriesPage />
@@ -85,7 +85,7 @@ const App: React.FC = () => {
                 }
               />
               <Route
-                path="/prioritization-app/group/:sessionId"
+                path="/group/:sessionId"
                 element={
                   <PrivateRoute>
                     <GroupSessionPage />
@@ -93,7 +93,7 @@ const App: React.FC = () => {
                 }
               />
               <Route
-                path="/prioritization-app/slider"
+                path="/slider"
                 element={
                   <PrivateRoute>
                     <SliderPage />
@@ -101,7 +101,7 @@ const App: React.FC = () => {
                 }
               />
               <Route
-                path="/prioritization-app/stories"
+                path="/stories"
                 element={
                   <PrivateRoute>
                     <ViewStoriesPage />
@@ -109,7 +109,7 @@ const App: React.FC = () => {
                 }
               />
               <Route
-                path="/prioritization-app/graph"
+                path="/graph"
                 element={
                   <PrivateRoute>
                     <GraphPage />
@@ -117,7 +117,7 @@ const App: React.FC = () => {
                 }
               />
               <Route
-                path="/prioritization-app/sessionResults"
+                path="/sessionResults"
                 element={
                   <PrivateRoute>
                     <SessionResultsPage />
@@ -125,7 +125,7 @@ const App: React.FC = () => {
                 }
               />
 
-              <Route path="*" element={<Navigate to="/prioritization-app/" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
         </div>

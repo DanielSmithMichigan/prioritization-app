@@ -14,3 +14,13 @@ export interface Story {
   category: string;
   elo: Record<metricKeys, EloRating>
 }
+
+export interface StoryPrimaryKey {
+  id: string,
+  tenant: string;
+}
+
+export interface GetAllStoriesResponse {
+  stories: Story[],
+  nextToken: StoryPrimaryKey
+}

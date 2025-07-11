@@ -22,8 +22,9 @@ export async function getAllStories(event) {
         };
     }
     const tenantId = getTenantId(user);
-    const limit = event.queryStringParameters?.limit ? parseInt(event.queryStringParameters.limit) : 25;
-    const nextToken = event.queryStringParameters?.nextToken;
+    const body = event.body ? JSON.parse(event.body) : {};
+    const limit = body.limit || 25;
+    const nextToken = body.nextToken;
     const result = await docClient.send(new QueryCommand({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'tenantId = :tid',
@@ -31,7 +32,7 @@ export async function getAllStories(event) {
             ':tid': tenantId
         },
         Limit: limit,
-        ...(nextToken ? { ExclusiveStartKey: JSON.parse(nextToken) } : {})
+        ...(nextToken ? { ExclusiveStartKey: nextToken } : {})
     }));
     return {
         statusCode: 200,

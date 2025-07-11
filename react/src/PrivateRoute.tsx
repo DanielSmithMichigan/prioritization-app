@@ -6,7 +6,7 @@ const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { isAuthenticated, isLoading } = useAuth0();
 
   if (isLoading) return <div className="text-center py-5">Loading authentication…</div>;
-  if (!isAuthenticated) return <Navigate to="/prioritization-app/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return children;
 };

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { setStories, setSliderStories, setSelectedMetric } from './store/comparisonSlice';
 import type { Story } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import { fetchAllStories } from './api/storyApi';
 import { setSessionId } from './store/sessionSlice';
 import { useAuth0 } from '@auth0/auth0-react';
 
@@ -37,20 +38,9 @@ const PaginatedStoryListPage: React.FC = () => {
   } = useQuery({
     queryKey: ['stories'],
     queryFn: async () => {
-      const token = await getAccessTokenSilently();
-      const res = await fetch(`${API_BASE}/stories/getAll`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ limit: 100 }),
-      });
-      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-      const data = await res.json();
-
-      dispatch(setStories(data.stories));
-      return data.stories as Story[];
+      const stories = await fetchAllStories(getAccessTokenSilently);
+      dispatch(setStories(stories));
+      return stories;
     },
   });
 
@@ -108,7 +98,7 @@ const PaginatedStoryListPage: React.FC = () => {
       dispatch(setSliderStories(selectedStories));
       dispatch(setSelectedMetric(metric));
       dispatch(setSessionId(newSessionId));
-      navigate(`/prioritization-app/group/${newSessionId}`);
+      navigate(`/group/${newSessionId}`);
 
     } catch (err) {
       console.error("Error creating session:", err);

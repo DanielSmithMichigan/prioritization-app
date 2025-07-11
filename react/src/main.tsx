@@ -22,7 +22,7 @@ root.render(
     domain={AUTH0_DOMAIN}
     clientId={AUTH0_CLIENT_ID}
     authorizationParams={{
-      redirect_uri: window.location.origin,
+      redirect_uri: "https://d2zqj6bs6gs3qs.cloudfront.net/",
       audience: "https://danielsmithmichigan.github.io/prioritization-app/",
       scope: "openid profile email",
     }}

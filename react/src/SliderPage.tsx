@@ -106,7 +106,7 @@ const StoryDragArea = () => {
   useEffect(() => {
     if (participants.length > 0 && participants.every(p => p.completed)) {
       console.log("All participants completed, redirecting to results...");
-      navigate('/prioritization-app/sessionResults');
+      navigate('/sessionResults');
     }
   }, [participants, navigate]);
 
